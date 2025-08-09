@@ -5,6 +5,7 @@ import folium
 from streamlit_folium import st_folium
 import matplotlib.pyplot as plt
 from haversine import haversine
+from scripts.elevation_profile import ElevationProfile
 
 # --- Ścieżka do pliku GPX ---
 GPX_FILE_PATH = "data/track/orbita25.gpx"
@@ -69,25 +70,20 @@ folium.Marker(
 # Wyświetl mapę w Streamlit
 st_folium(m, width=700, height=500)
 
-# --- Profil wysokości ---
-# Stylizowany wykres
-fig, ax = plt.subplots(figsize=(10, 4))
+# --- mapa trasy 2 ---
 
-# Wypełnienie pod profilem
-ax.fill_between(df["distance_km"], df["elevation"], color="orangered", alpha=0.7)
+gpx_path = "data/track/orbita25.gpx"
 
-# Linia profilu
-ax.plot(df["distance_km"], df["elevation"], color="darkred", linewidth=2)
+profile = ElevationProfile(gpx_path, 
+                            seg_unit_km=0.5
+                            ).parse_gpx()
 
-# Stylizacja osi
-ax.set_xlabel("Dystans (km)", fontsize=12)
-ax.set_ylabel("Wysokość (m)", fontsize=12)
-ax.grid(True, linestyle="--", alpha=0.3)
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
+coords = list(zip(profile.track_df['latitude'], profile.track_df['longitude']))
 
-# Tytuł
-ax.set_title("Profil wysokości trasy", fontsize=16, fontweight='bold')
+# Utwórz mapę na środku pierwszego punktu
+m2 = folium.Map(location=coords[0], zoom_start=13)
 
-# Wyświetl w Streamlit
-st.pyplot(fig)
+# Dodaj trasę jako polilinię
+folium.PolyLine(coords, color='blue', weight=5, opacity=0.7).add_to(m2)
+
+st_folium(m2, width=700, height=500)
