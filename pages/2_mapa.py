@@ -1,89 +1,74 @@
 import streamlit as st
-import gpxpy
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
-import matplotlib.pyplot as plt
-from haversine import haversine
+from folium.plugins import AntPath
+from scripts.gpx_parser import GPXParser
 from scripts.elevation_profile import ElevationProfile
 
-# --- Ścieżka do pliku GPX ---
-GPX_FILE_PATH = "data/track/orbita25.gpx"
 
-# --- Parsowanie GPX ---
-def parse_gpx(file_path):
-    with open(file_path, 'r', encoding='utf-8') as gpx_file:
-        gpx = gpxpy.parse(gpx_file)
+# coords z GPX
+parser = GPXParser("data/track/orbita25.gpx")
+df = parser.parse_to_dataframe()
+coords = df[['latitude', 'longitude']].values.tolist()
 
-    data = []
-    total_distance = 0
-    prev_point = None
+# Bufet 
+bufet_latlon = [50.716720597663816, 19.01338864353129]
 
-    for track in gpx.tracks:
-        for segment in track.segments:
-            for point in segment.points:
-                if prev_point:
-                    dist = haversine(
-                        (prev_point.latitude, prev_point.longitude),
-                        (point.latitude, point.longitude)
-                    )
-                    total_distance += dist
-                else:
-                    dist = 0
-                data.append({
-                    "lat": point.latitude,
-                    "lon": point.longitude,
-                    "elevation": point.elevation,
-                    "distance_km": total_distance
-                })
-                prev_point = point
+#### Mapa z trasą ####
+st.title("Trasa Orbity'25 - Maratonu Kolarskiego")
 
-    return pd.DataFrame(data)
+# Tworzymy mapę w centrum trasy
+m = folium.Map(location=coords[0], zoom_start=10, tiles="OpenStreetMap")
 
-# --- Wczytaj dane ---
-df = parse_gpx(GPX_FILE_PATH)
-
-# --- Mapa z trasą ---
-st.title("📍 Mapa Trasy i Profil Wysokości")
-
-st.subheader("🗺️ Trasa na mapie (Folium)")
-
-center = [df["lat"].mean(), df["lon"].mean()]
-m = folium.Map(location=center, zoom_start=13)
-
-# Dodaj linię trasy
-folium.PolyLine(df[["lat", "lon"]].values, color="blue", weight=5, opacity=0.8).add_to(m)
-
-# Początek i koniec trasy
-folium.Marker(
-    location=[df.iloc[0]["lat"], df.iloc[0]["lon"]],
-    popup="Start",
-    icon=folium.Icon(color="green")
+# Animowana linia trasy
+AntPath(
+    coords,
+    color="blue",
+    weight=5,
+    delay=2000,
+    dash_array=[10, 100],
+    pulse_color="red"
 ).add_to(m)
 
+# Start/meta z ikonką roweru
 folium.Marker(
-    location=[df.iloc[-1]["lat"], df.iloc[-1]["lon"]],
-    popup="Meta",
-    icon=folium.Icon(color="red")
+    location=coords[0],
+    popup="Start / Meta",
+    tooltip="Start i Meta",
+    icon=folium.Icon(color="green", icon="bicycle", prefix="fa")
 ).add_to(m)
 
-# Wyświetl mapę w Streamlit
-st_folium(m, width=700, height=500)
+# Bufet z ikonką jedzenia
+folium.Marker(
+    location=bufet_latlon,
+    popup="Bufet",
+    tooltip="Słodki bufet",
+    icon=folium.Icon(color="orange", icon="cutlery", prefix="fa")
+).add_to(m)
 
-# --- mapa trasy 2 ---
+ElevationProfile = ElevationProfile(df, seg_unit_km=0.5)
+lengths = ElevationProfile.compute_slope_lengths(smooth_window=5, slope_thresholds=(2, 4, 5, 8))
+lengths.rename(columns={'length_km': 'ilość km', 'slope_range': 'nachylenie'}, inplace=True)
 
-gpx_path = "data/track/orbita25.gpx"
 
-profile = ElevationProfile(gpx_path, 
-                            seg_unit_km=0.5
-                            ).parse_gpx()
+col1, col2 = st.columns([1, 3])
 
-coords = list(zip(profile.track_df['latitude'], profile.track_df['longitude']))
+with col1:
+    st.metric("Długość trasy", f"{round(df['km'].max(), 2)} km")
+    st.metric('Suma podjazdów', f"{round(parser.get_total_ascent(), 2)} m")
+    st.metric("Najwyższy punkt", f"{round(df['elevation'].max(), 2)} m")
+    st.metric("Najniższy punkt", f"{round(df['elevation'].min(), 2)} m")
+    st.write("### Długości segmentów według nachylenia")
+    st.dataframe(lengths, hide_index=True)
 
-# Utwórz mapę na środku pierwszego punktu
-m2 = folium.Map(location=coords[0], zoom_start=13)
+with col2:
+    # mapa z trasą
+    #st_data = st_folium(m, width='100%', height='500px')
+    with open("static/mapa_orbity.html", "r", encoding="utf-8") as f:
+        mapa_html = f.read()
 
-# Dodaj trasę jako polilinię
-folium.PolyLine(coords, color='blue', weight=5, opacity=0.7).add_to(m2)
-
-st_folium(m2, width=700, height=500)
+    # Wyświetlenie mapy w Streamlit za pomocą komponentu html
+    st.components.v1.html(mapa_html, height=400, width=2000)
+    # profif wysokości - obraz
+    st.image("static/elevation_profile.png", caption="Profil wysokościowy trasy")

@@ -2,7 +2,7 @@ import streamlit as st
 from scripts.preprocess import load_data
 
 st.set_page_config(
-    page_title="Maraton Kolarski - Dashboard",
+    page_title="Orbita'25 - Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
 )

@@ -1,90 +1,100 @@
 import streamlit as st
+import numpy as np
 from scripts.preprocess import load_data
 
-# --- Funkcje pomocnicze ---
 def format_value(value, total, mode):
-    """Formatuje wartość jako liczba lub procent."""
     if mode == "Procenty" and total > 0:
         return f"{(value / total * 100):.1f}%"
     return value
 
-def responsive_metrics(metrics, cols_per_row=3):
-    """Wyświetla metryki w układzie responsywnym."""
-    for i in range(0, len(metrics), cols_per_row):
-        row = st.columns(cols_per_row)
-        for col, (label, value) in zip(row, metrics[i:i+cols_per_row]):
-            col.metric(label, value)
-
-# --- Wczytanie danych ---
 df = load_data()
+df["pozycja globalna"] = np.arange(1, len(df) + 1)
 
-st.title("📊 Statystyki z zawodów")
+st.title("Podstawowe Statystyki")
 
 # --- Filtry boczne ---
-plec = st.sidebar.pills(
-    "Płeć", options=df["plec"].unique(),
-    default=df["plec"].unique(), selection_mode="multi"
-)
-pora = st.sidebar.pills(
-    "Pora startu", options=df["pora_startu"].unique(),
-    default=df["pora_startu"].unique(), selection_mode="multi"
-)
-typ = st.sidebar.pills(
-    "Typ uczestnika", options=df["typ_uczestnika"].unique(),
-    default=df["typ_uczestnika"].unique(), selection_mode="multi"
-)
+plec = st.sidebar.pills("Płeć", options=df["plec"].unique(),
+                        default=df["plec"].unique(), selection_mode="multi")
+pora = st.sidebar.pills("Pora startu", options=df["pora_startu"].unique(),
+                        default=df["pora_startu"].unique(), selection_mode="multi")
+typ = st.sidebar.pills("Typ uczestnika", options=df["typ_uczestnika"].unique(),
+                       default=df["typ_uczestnika"].unique(), selection_mode="multi")
 
-# --- Filtrowanie wstępne ---
-df_filtered = df.query(
-    "plec in @plec and pora_startu in @pora and typ_uczestnika in @typ"
-)
+df_filtered = df.query("plec in @plec and pora_startu in @pora and typ_uczestnika in @typ")
 
-# --- Tryb wyświetlania ---
-view_mode = st.radio("Tryb wyświetlania", ["Liczby", "Procenty"], horizontal=True)
+# --- Toggle obok siebie ---
+col_toggle1, col_toggle2 = st.columns(2)
 
-# --- Liczby organizacyjne ---
+with col_toggle1:
+    include_dns = st.toggle("Uwzględnij DNS w analizie", value=False)
+
+with col_toggle2:
+    show_percent = st.toggle("Widok procentowy", value=False)
+
+# Ustawienie trybu wyświetlania na podstawie toggle
+view_mode = "Procenty" if show_percent else "Liczby"
+
 total_ucz = len(df_filtered)
-org_metrics = [
-    ("Liczba zapisanych", format_value(len(df_filtered), total_ucz, view_mode)),
-    ("DNS (nie wystartowali)", format_value(df_filtered["DNS"].sum(), total_ucz, view_mode)),
-    ("Wystartowali", format_value((~df_filtered["DNS"]).sum(), total_ucz, view_mode))
-]
-responsive_metrics(org_metrics, cols_per_row=3)
 
-# --- Uwzględnianie DNS ---
-if not st.toggle("Uwzględnij DNS w analizie", value=True):
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Liczba zapisanych", format_value(len(df_filtered), total_ucz, view_mode))
+with col2:
+    st.metric("DNS (nie wystartowali)", format_value(df_filtered["DNS"].sum(), total_ucz, view_mode))
+with col3:
+    st.metric("Wystartowali", format_value((~df_filtered["DNS"]).sum(), total_ucz, view_mode))
+
+if not include_dns:
     df_filtered = df_filtered[df_filtered["DNS"] == False]
 
-total_ucz = len(df_filtered)  # aktualizacja po filtrze DNS
+total_deklarowane = df_filtered["deklarowane"].sum()
 
-# --- Metryki analityczne ---
 okr_left = [2, 4]
 okr_right = [1, 3, 5]
 
 metrics_left = [
-    ("Liczba deklarowanych okrążeń", format_value(df_filtered["deklarowane"].sum(), total_ucz, view_mode)),
-    ("Średnia deklarowanych okrążeń", round(df_filtered["deklarowane"].mean(), 1)),
-    ("Całkowity dystans [km]", round(df_filtered["dystans_km"].sum(), 1)),
-    ("Mniej niż 1 okrążenie", format_value(df_filtered["mniej_niz_1_orbita"].sum(), total_ucz, view_mode))
+    ("Deklarowane okrążenia", format_value(total_deklarowane, total_deklarowane, view_mode)),
+    ("Średnia liczba deklarowanych okrążeń na uczestnika", round(df_filtered["deklarowane"].mean(), 1)),
+    ("Mniej niż 1 okrążenie", format_value(df_filtered["mniej_niz_1_orbita"].sum() + df_filtered["DNS"].sum(), total_ucz, view_mode))
 ] + [
     (f"{o} okrążenia", format_value(df_filtered["zrobione_pelne"].eq(o).sum(), total_ucz, view_mode))
     for o in okr_left
 ]
 
 metrics_right = [
-    ("Liczba wykręconych okrążeń", format_value(df_filtered["zrobione_pelne"].sum(), total_ucz, view_mode)),
-    ("Średnia zrobionych okrążeń", round(df_filtered["zrobione"].mean(), 1)),
-    ("Średni dystans [km]", round(df_filtered["dystans_km"].mean(), 1))
+    ("Wykręcone okrążenia", format_value(df_filtered["zrobione_pelne"].sum(), total_deklarowane, view_mode)),
+    ("Średnia liczba zrobionych okrążeń na uczestnika", round(df_filtered["zrobione"].mean(), 1)),
 ] + [
     (f"{o} okrążenia", format_value(df_filtered["zrobione_pelne"].eq(o).sum(), total_ucz, view_mode))
     for o in okr_right
 ]
 
-# Wyświetlenie w dwóch kolumnach
-col1, col2 = st.columns(2)
-with col1:
-    for label, val in metrics_left:
-        col1.metric(label, val)
-with col2:
-    for label, val in metrics_right:
-        col2.metric(label, val)
+#st.write("---")
+#st.header("Dane o okrążeniach")
+
+tab1, tab2, tab3 = st.tabs(["Statystyki okrążeń", "Statystyki dystansu", "Ranking"])
+with tab1:
+    col1, col2 = st.columns(2)
+    with col1:
+        for label, val in metrics_left:
+            st.metric(label, val)
+    with col2:
+        for label, val in metrics_right:
+            st.metric(label, val)
+
+
+with tab2:
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Średni dystans na uczestnika [km]", f"{round(df_filtered["dystans_km"].mean(), 2)} km")
+    with col2:
+        st.metric("Suma dystansu wszystkich uczestników [km]", f"{round(df_filtered["dystans_km"].sum(), 2)} km")
+
+with tab3:
+    df_filtered = df_filtered.sort_values(["dystans_km", "nr_startowy"], ascending=[False, True])
+    df_filtered.index = np.arange(1, len(df_filtered) + 1)
+    df_filtered = df_filtered.rename_axis('Pozycja')
+
+
+    st.dataframe(df_filtered[['pozycja globalna', 'nr_startowy', 'nick', 'dystans_km', 'zrobione_pelne']])
