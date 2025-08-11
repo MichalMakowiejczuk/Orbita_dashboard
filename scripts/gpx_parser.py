@@ -15,6 +15,7 @@ class GPXParser:
         return geodesic((lat1, lon1), (lat2, lon2)).km
 
     def parse_to_dataframe(self):
+        """Parsuje plik GPX i zwraca DataFrame z danymi o ścieżce."""
         with open(self.gpx_path, "r", encoding="utf-8") as gpx_file:
             gpx = gpxpy.parse(gpx_file)
 
@@ -36,6 +37,7 @@ class GPXParser:
         return self.track_df
     
     def get_total_ascent(self, smooth_window=5):
+        """Oblicza całkowite przewyższenie na podstawie danych track_df."""
         if self.track_df is None:
             raise ValueError("Brak danych – najpierw uruchom parse_to_dataframe().")
 

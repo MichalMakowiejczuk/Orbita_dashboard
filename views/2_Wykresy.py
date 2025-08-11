@@ -8,6 +8,8 @@ df = load_data()
 
 st.title("Dashboard Maratonu Kolarskiego")
 
+# --- Apply filters ---
+st.sidebar.header("Filtry")
 plec = st.sidebar.pills("Płeć", options=df["plec"].unique(),
                         default=df["plec"].unique(), selection_mode="multi")
 pora = st.sidebar.pills("Pora startu", options=df["pora_startu"].unique(),
@@ -15,7 +17,12 @@ pora = st.sidebar.pills("Pora startu", options=df["pora_startu"].unique(),
 typ = st.sidebar.pills("Typ uczestnika", options=df["typ_uczestnika"].unique(),
                        default=df["typ_uczestnika"].unique(), selection_mode="multi")
 
+
 df_filtered = df.query("plec in @plec and pora_startu in @pora and typ_uczestnika in @typ")
+
+# --- Footer ---
+st.sidebar.markdown("---")
+st.sidebar.markdown("Made with ❤️ by Michał Makowiejczuk")
 
 if df_filtered.empty:
     st.warning("Brak danych dla wybranych filtrów")
@@ -112,4 +119,5 @@ else:
     with col1:
         st.plotly_chart(bar_fig, use_container_width=True)
     with col2:
-        st.plotly_chart(plotly_gauge(df_filtered, "Średnia realizacja deklarowanych okrążeń [%]"), use_container_width=True)
+        st.plotly_chart(plotly_gauge(df_filtered, "Realizacja deklarowanych okrążeń [%]"), use_container_width=True)
+

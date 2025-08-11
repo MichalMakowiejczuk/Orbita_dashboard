@@ -8,11 +8,11 @@ def format_value(value, total, mode):
     return value
 
 df = load_data()
-df["pozycja globalna"] = np.arange(1, len(df) + 1)
 
 st.title("Podstawowe Statystyki")
 
 # --- Filtry boczne ---
+st.sidebar.header("Filtry")
 plec = st.sidebar.pills("Płeć", options=df["plec"].unique(),
                         default=df["plec"].unique(), selection_mode="multi")
 pora = st.sidebar.pills("Pora startu", options=df["pora_startu"].unique(),
@@ -21,6 +21,10 @@ typ = st.sidebar.pills("Typ uczestnika", options=df["typ_uczestnika"].unique(),
                        default=df["typ_uczestnika"].unique(), selection_mode="multi")
 
 df_filtered = df.query("plec in @plec and pora_startu in @pora and typ_uczestnika in @typ")
+
+# --- Footer ---
+st.sidebar.markdown("---")
+st.sidebar.markdown("Made with ❤️ by Michał Makowiejczuk")
 
 # --- Toggle obok siebie ---
 col_toggle1, col_toggle2 = st.columns(2)
@@ -70,9 +74,6 @@ metrics_right = [
     for o in okr_right
 ]
 
-#st.write("---")
-#st.header("Dane o okrążeniach")
-
 tab1, tab2, tab3 = st.tabs(["Statystyki okrążeń", "Statystyki dystansu", "Ranking"])
 with tab1:
     col1, col2 = st.columns(2)
@@ -87,14 +88,14 @@ with tab1:
 with tab2:
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Średni dystans na uczestnika [km]", f"{round(df_filtered["dystans_km"].mean(), 2)} km")
+        st.metric("Średni dystans na uczestnika", f"{round(df_filtered["dystans_km"].mean(), 2)} km")
     with col2:
-        st.metric("Suma dystansu wszystkich uczestników [km]", f"{round(df_filtered["dystans_km"].sum(), 2)} km")
+        st.metric("Suma dystansu wszystkich uczestników", f"{round(df_filtered["dystans_km"].sum(), 2)} km")
 
 with tab3:
-    df_filtered = df_filtered.sort_values(["dystans_km", "nr_startowy"], ascending=[False, True])
-    df_filtered.index = np.arange(1, len(df_filtered) + 1)
-    df_filtered = df_filtered.rename_axis('Pozycja')
+    df_rank = df_filtered.sort_values(["dystans_km", "nr_startowy"], ascending=[False, True])
+    df_rank.index = np.arange(1, len(df_rank) + 1) 
+    df_rank.index.name = "Pozycja (z filtrem)"       
 
+    st.dataframe(df_rank[['Pozycja globalna' ,'nr_startowy', 'nick', 'dystans_km', 'zrobione_pelne']])
 
-    st.dataframe(df_filtered[['pozycja globalna', 'nr_startowy', 'nick', 'dystans_km', 'zrobione_pelne']])

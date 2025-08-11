@@ -1,38 +1,33 @@
 import streamlit as st
-import pandas as pd
 import folium
 import base64
-from streamlit_folium import st_folium
 from folium.plugins import AntPath
 from gpx_parser import GPXParser
-from elevation_profile import ElevationProfile
 
 
-# coords z GPX
+# GPX coords 
 parser = GPXParser("data/track/orbita25.gpx")
 df = parser.parse_to_dataframe()
 coords = df[['latitude', 'longitude']].values.tolist()
 
-# Bufet 
+# bufet coords
 BUFET_LATLON = [50.716720597663816, 19.01338864353129]
 
-#### Mapa z trasą ####
-st.title("Mapa Trasy Maratonu Kolarskiego")
+st.title("Trasa Orbity'25 - Maratonu Kolarskiego")
 
-# Tworzymy mapę w centrum trasy
 m = folium.Map(location=coords[0], zoom_start=10, tiles="OpenStreetMap")
 
-# Animowana linia trasy
+# animated path
 AntPath(
     coords,
     color="blue",
     weight=5,
     delay=2000,
     dash_array=[10, 100],
-    pulse_color="red"
+    pulse_color="darkblue"
 ).add_to(m)
 
-# Start/meta z ikonką roweru
+# start and finish marker
 with open("static/start_meta.jpg", "rb") as img_file:
     b64_img = base64.b64encode(img_file.read()).decode()
 
@@ -45,7 +40,7 @@ folium.Marker(
     icon=folium.Icon(color="green", icon="bicycle", prefix="fa")
 ).add_to(m)
 
-# Bufet z ikonką jedzenia
+# bufet marker
 with open("static/bufet.jpg", "rb") as img_file:
     b64_img = base64.b64encode(img_file.read()).decode()
 
