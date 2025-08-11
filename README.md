@@ -33,7 +33,8 @@ Dashboard umożliwia szczegółową analizę wyników, wizualizację trasy oraz 
 
 ### Wymagania
 
-Możesz zainstalować wymagane pakiety z pliku `requirements.txt`
+- Python w wersji 3.13.2
+- Możesz zainstalować wymagane pakiety z pliku `requirements.txt`
 
 ```bash
 pip install -r requirements.txt
